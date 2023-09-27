@@ -1,0 +1,29 @@
+Package: ideanetViz
+Title: Visualize ideanet Outputs
+Version: 0.0.0.9000
+Authors@R: 
+    person("Kieran", "Lele", , "kieranlele@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: Visualizer Function for the ideanet package.
+DisplayMode: Showcase
+License: CC BY 4.0
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports: 
+    dplyr,
+    DT,
+    foreach,
+    gridExtra,
+    igraph,
+    plotly,
+    RColorBrewer,
+    rlang,
+    shiny,
+    shinycssloaders,
+    shinythemes,
+    shinyWidgets,
+    visNetwork,
+    ideanet,
+    magrittr
+    
