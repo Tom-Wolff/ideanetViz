@@ -145,9 +145,12 @@ ui <- shiny::fluidPage(
         #uiOutput('edge_weight_scalar'),
       ),
       mainPanel(
-        uiOutput("network_ui"),
-        HTML("<br><br>"),
+        column(8,
+          uiOutput("network_ui")
+        ),
+        column(4,
         plotOutput("legend")
+        )
       )
     )),
 ### Network Metrics ----
@@ -948,29 +951,41 @@ net5 <- reactive({
     #### Create legend here
     
     # dataframe of groups (from net1)
-    net1 <- net1()
+    color_net <- net5()
     
-    # color merging/assigning dataframe
-    color_assign <- data.frame(group = igraph::V(net1)$group)
+    # Extract node colors from `color_net`
+    if (input$community_input != "None") {
+      # This bit of code from above just kept here for reference, shouldn't be un-commented-out
+      #### igraph::V(net)$color <- color_matcher()$colrs[match(igraph::V(net)$communities, color_matcher()$groups)]
+      node_legend_df <- unique(data.frame(group = igraph::V(color_net)$communities,
+                                          color = igraph::V(color_net)$color))
+    } else {
+      # This bit of code from above just kept here for reference, shouldn't be un-commented-out
+      #### igraph::V(net)$color <- color_matcher()$colrs[match(igraph::V(net)$group, color_matcher()$groups)]
+      node_legend_df <- unique(data.frame(group = igraph::V(color_net)$group,
+                                          color = igraph::V(color_net)$color))
+    }
     
-    # links group values to group identifier
-    group_index <- data.frame(group = unique(igraph::V(net1)$group),
-                              group_id = 1:length(unique(igraph::V(net1)$group)))
+    node_legend_df <- dplyr::arrange(node_legend_df, group)
     
-    # not too sure about this - how to get color theme that user selected?
-    # color_palette = color_generator_edges$palette
-    # group_index$color = palette(num.color = nrow(group_index))
-    
-    color_assign <- color_assign %>% dplyr::left_join(group_index, by = "group")
+    # # links group values to group identifier
+    # group_index <- data.frame(group = unique(igraph::V(net1)$group),
+    #                           group_id = 1:length(unique(igraph::V(net1)$group)))
+    # 
+    # # not too sure about this - how to get color theme that user selected?
+    # # color_palette = color_generator_edges$palette
+    # # group_index$color = palette(num.color = nrow(group_index))
+    # 
+    # color_assign <- color_assign %>% dplyr::left_join(group_index, by = "group")
     
     # figure out how to populate with right values
-    plot.new()
-    legend(
-      x = "left",
-      legend = group_index$group_id,
-      pt.bg = color_assign$color,
-      title = "Group"
-    )
+    plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+    # Only display/populate if a color palette is actually chosen
+    if (input$palette_input != 'Uniform') {
+          legend("topleft", legend = node_legend_df$group, pch=16, pt.cex=3, cex=1.5, bty='n',
+                 col = node_legend_df$color)
+          mtext("Legend", at=0.2, cex=2)
+    }
   })
   
   output$network_ui <- 
