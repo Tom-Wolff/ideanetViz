@@ -145,7 +145,12 @@ ui <- shiny::fluidPage(
         #uiOutput('edge_weight_scalar'),
       ),
       mainPanel(
-        uiOutput("network_ui")
+        column(8,
+          uiOutput("network_ui")
+        ),
+        column(4,
+        plotOutput("legend")
+        )
       )
     )),
 ### Network Metrics ----
@@ -683,38 +688,55 @@ number_of_color_groups_edges <- reactive({
 })
 
 #Generate Color patterns/hues
+
+# idea for grabbing user's inputted color palette: set value equal to whatever
+# is inside if statement, and then extract out that value
+
 color_generator_edges <- reactive({
+  palette <- NULL
+  
   if (input$palette_input == 'Uniform') {
     rep(input$uniform_hex_code, number_of_color_groups_edges())
+    palette <- rep(input$uniform_hex_code, number_of_color_groups_edges())
   } else if (input$palette_input == 'Rainbow') {
     if (number_of_color_groups_edges() == 1) {
       rainbow(10)[5]
+      palette <- rainbow(10)[5]
     } else {
       rainbow(number_of_color_groups_edges())
+      palette <- rainbow(number_of_color_groups_edges())
     }
   } else if (input$palette_input == 'Heat') {
     if (number_of_color_groups_edges() == 1) {
       heat.colors(10)[5]
+      palette <- heat(10)[5]
     } else {
       heat.colors(number_of_color_groups_edges())
+      palette <- heat.colors(number_of_color_groups_edges())
     }
   } else if (input$palette_input == 'Terrain') {
     if (number_of_color_groups_edges() == 1) {
       terrain.colors(10)[5]
+      palette <- terrain.colors(10)[5]
     } else {
       terrain.colors(number_of_color_groups_edges())
+      palette <- terrain.colors(number_of_color_groups_edges())
     }
   } else if (input$palette_input == 'Topo') {
     if (number_of_color_groups_edges() == 1) {
       topo.colors(10)[5]
+      palette <- topo.colors(10)[5]
     } else {
       topo.colors(number_of_color_groups_edges())
+      palette <- topo.colors(number_of_color_groups_edges())
     }
   } else if (input$palette_input == 'CM') {
     if (number_of_color_groups_edges() == 1) {
       cm.colors(10)[5]
+      palette <- cm.colors(10)[5]
     } else {
       cm.colors(number_of_color_groups_edges())
+      palette <- cm.colors(number_of_color_groups_edges())
     }
   }
 })
@@ -800,8 +822,6 @@ net5 <- reactive({
     net
   }
 })
-  
-
   
 #### Pick Network layout ----
   
@@ -893,8 +913,7 @@ net5 <- reactive({
                    nodesIdSelection = T) %>% 
         visNetwork::visEdges(arrows =list(to = list(enabled = input$direction_toggle, scaleFactor = 2))) %>% 
         visNetwork::visExport(type = input$image_type, name = paste0(input$layout_choice, seed_number$seed,Sys.Date()))  %>%
-        visNetwork::visGroups() %>% 
-        visNetwork::visLegend()
+        visNetwork::visGroups() 
     } else {
       net.visn$edges$value <- net.visn$edges$weight
       visNetwork::visNetwork(net.visn$nodes, net.visn$edges) %>% 
@@ -903,8 +922,7 @@ net5 <- reactive({
                    nodesIdSelection = T) %>%
         visNetwork::visEdges(arrows =list(to = list(enabled = input$direction_toggle, scaleFactor = 2))) %>% 
         visNetwork::visExport(type = input$image_type, name = paste0(input$layout_choice, seed_number$seed,Sys.Date())) %>% 
-        visNetwork::visGroups() %>% 
-        visNetwork::visLegend()
+        visNetwork::visGroups() 
     }} else {
       if (input$edge_weight_method == "Uniform") {
         net.visn$edges$value <- net.visn$edges$uni_weight
@@ -914,8 +932,7 @@ net5 <- reactive({
                          dragView = FALSE) %>% 
           visNetwork::visEdges(arrows =list(to = list(enabled = input$direction_toggle, scaleFactor = 2))) %>% 
           visNetwork::visExport(type = input$image_type, name = paste0(input$layout_choice, seed_number$seed,Sys.Date())) %>% 
-          visNetwork::visGroups() %>% 
-          visNetwork::visLegend()
+          visNetwork::visGroups() 
       } else {
         net.visn$edges$value <- net.visn$edges$weight
         visNetwork::visNetwork(net.visn$nodes, net.visn$edges) %>% 
@@ -924,14 +941,52 @@ net5 <- reactive({
                          dragView = FALSE) %>% 
           visNetwork::visEdges(arrows =list(to = list(enabled = input$direction_toggle, scaleFactor = 2))) %>% 
           visNetwork::visExport(type = input$image_type, name = paste0(input$layout_choice, seed_number$seed,Sys.Date())) %>% 
-          visNetwork::visGroups() %>% 
-          visNetwork::visLegend()
-    }}
-    
+          visNetwork::visGroups() 
+      }}
   })
   
   output$network <- visNetwork::renderVisNetwork(net8())
  
+  output$legend <- renderPlot({
+    #### Create legend here
+    
+    # dataframe of groups (from net1)
+    color_net <- net5()
+    
+    # Extract node colors from `color_net`
+    if (input$community_input != "None") {
+      # This bit of code from above just kept here for reference, shouldn't be un-commented-out
+      #### igraph::V(net)$color <- color_matcher()$colrs[match(igraph::V(net)$communities, color_matcher()$groups)]
+      node_legend_df <- unique(data.frame(group = igraph::V(color_net)$communities,
+                                          color = igraph::V(color_net)$color))
+    } else {
+      # This bit of code from above just kept here for reference, shouldn't be un-commented-out
+      #### igraph::V(net)$color <- color_matcher()$colrs[match(igraph::V(net)$group, color_matcher()$groups)]
+      node_legend_df <- unique(data.frame(group = igraph::V(color_net)$group,
+                                          color = igraph::V(color_net)$color))
+    }
+    
+    node_legend_df <- dplyr::arrange(node_legend_df, group)
+    
+    # # links group values to group identifier
+    # group_index <- data.frame(group = unique(igraph::V(net1)$group),
+    #                           group_id = 1:length(unique(igraph::V(net1)$group)))
+    # 
+    # # not too sure about this - how to get color theme that user selected?
+    # # color_palette = color_generator_edges$palette
+    # # group_index$color = palette(num.color = nrow(group_index))
+    # 
+    # color_assign <- color_assign %>% dplyr::left_join(group_index, by = "group")
+    
+    # figure out how to populate with right values
+    plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+    # Only display/populate if a color palette is actually chosen
+    if (input$palette_input != 'Uniform') {
+          legend("topleft", legend = node_legend_df$group, pch=16, pt.cex=3, cex=1.5, bty='n',
+                 col = node_legend_df$color)
+          mtext("Legend", at=0.2, cex=2)
+    }
+  })
   
   output$network_ui <- 
     renderUI({
