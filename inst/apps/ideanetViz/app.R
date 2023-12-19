@@ -174,19 +174,42 @@ ui <- shiny::fluidPage(
 
 ### Networks DataTable ----
 tabPanel(
-  "Node Measures Table",
-  sidebarLayout(
-    sidebarPanel(
-      style = "height: 90vh; overflow-y: auto;",
-      uiOutput('show_vars'),
-      uiOutput('data_table_vis_var'),
-      downloadButton("downloadTable", "Download",icon = shiny::icon("download"))
+  tabPanel(
+    "Node Measures Table",
+    sidebarLayout(
+      sidebarPanel(
+        style = "height: 90vh; overflow-y: auto;",
+        uiOutput('show_vars'),
+        br(),
+        checkboxInput('graph_wanted', tags$b("Do you want to graph a variable?"),FALSE),
+        conditionalPanel(
+          condition = "input.graph_wanted == true",
+          uiOutput('data_table_vis_var')
+        ),
+        conditionalPanel(
+          condition = "input.graph_wanted == true & input.var_wanted == false",
+          uiOutput('data_table_vis_type')
+        ),
+        conditionalPanel(
+          condition = "input.graph_wanted == true",
+          checkboxInput('var_wanted', tags$b("Add second variable? (optional)"),FALSE)
+        ),
+        conditionalPanel(
+          condition = "input.var_wanted == true & input.graph_wanted == true",
+          uiOutput('data_table_vis_var2')
+        ),
+        downloadButton("downloadTable", "Download",icon = shiny::icon("download")),
       ),
       mainPanel(
         style = "overflow-x: auto;",
-        DT::DTOutput('statistics_table'))
+        DT::DTOutput('statistics_table'),
+        HTML("<br><br>"),
+        
+        plotOutput('statistics_graph')
+        
+      )
     )
-),
+  ),
 ### Analysis tab ----
     tabPanel(
       "Advanced Analytical Packages",
@@ -1064,16 +1087,84 @@ net5 <- reactive({
   })
 
 ### Visualize nodemeasures ----
-output$show_vars <- renderUI({
-  checkboxGroupInput("show_vars", "Columns in node variables to show:",
-                     names(node_measures), selected = names(node_measures)[1:5])
-})
+  custom_theme <- function() {
+    theme_minimal() +
+      theme(
+        text = element_text(family = "Helvetica", color = "#333333"),
+        plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+        plot.subtitle = element_text(size = 12, hjust = 0.5),
+        plot.caption = element_text(size = 8, hjust = 0.5),
+        axis.title = element_text(size = 10),
+        axis.text = element_text(size = 8),
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 8)
+      )
+  }
   
-output$data_table_vis_var <- renderUI({print("Reached vis var")
-  selectInput('data_table_vis_var',label = 'select vis var',choices = nodelist3() %>% colnames(), selected = NULL)
-})
+  output$show_vars <- renderUI({
+    checkboxGroupInput("show_vars", "Columns in node variables to show:",
+                       names(node_measures), selected = names(node_measures)[1:5])
+  })
+  
+  
+  
+  
+  
+  graph_wanted_val <- reactive({input$graph_wanted})
+  
+  
+  output$graph_wanted <- renderUI({
+    checkboxInput('graph_wanted', value = FALSE)
+  })
+  
+  output$var_wanted <- renderUI({
+    req(input$graph_wanted)
+    checkboxInput('var_wanted', value = FALSE)
+  })
+  
+  output$data_table_vis_var <-
+    
+    renderUI({ 
+      req(input$graph_wanted)
+      selectInput('data_table_vis_var',label = 'select vis var',choices = nodelist3() %>% colnames(), selected = NULL)
+    })
+  
+  output$data_table_vis_var2 <-
+    
+    renderUI({ 
+      req(input$graph_wanted)
+      req(input$var_wanted)
+      selectInput('data_table_vis_var2',label = 'select second vis var',choices = nodelist3() %>% colnames(), selected = NULL)
+    })
+  
+  chosen_node_graph <- reactiveVal()
+  observeEvent(input$data_table_vis_type, {
+    chosen_graph <- 
+      if(input$data_table_vis_type == 'boxplot') {
+        chosen_node_graph('boxplot')
+      }
+    else if(input$data_table_vis_type == 'histogram'){
+      chosen_node_graph('histogram')
+    }
+    else if(input$data_table_vis_type == 'density plot'){
+      chosen_node_graph('density plot')
+    }
+  })
+  observeEvent(input$data_table_vis_var2, {
+    chosen_graph <- 
+      chosen_node_graph('scatterplot')
+  })
+  
+  
+  
+  output$data_table_vis_type <- 
+    renderUI({
+      req(input$graph_wanted)
+      selectInput('data_table_vis_type', label = 'select vis type', choices = c('histogram', 'density plot', 'boxplot'), selected = NULL)
+    })
+  
   output$statistics_table <- DT::renderDataTable({#print("Reached data table")
-                                              nodelist3()[, input$show_vars, drop = FALSE]})
+    nodelist3()[, input$show_vars, drop = FALSE]})
   output$downloadTable <- downloadHandler(
     filename = function() {
       paste("node_measures_", Sys.Date(), ".csv")
@@ -1082,6 +1173,25 @@ output$data_table_vis_var <- renderUI({print("Reached vis var")
       write.csv(nodelist3(),file)
     }
   )
+  
+  
+  output$statistics_graph <-
+    renderPlot({
+      req(input$graph_wanted)
+      if(chosen_node_graph() == 'boxplot') {
+        ggplot2::ggplot(data = nodelist3(), aes(x = nodelist3()[,input$data_table_vis_var])) + ggplot2::geom_boxplot(color="#0073C2FF", fill="#0073C2FF", alpha=0.2) + labs(title = paste ("Distribution of", input$data_table_vis_var), x = input$data_table_vis_var) + custom_theme() 
+      }
+      else if(chosen_node_graph() == 'histogram') {
+        ggplot2::ggplot(data = nodelist3(), aes(x = nodelist3()[,input$data_table_vis_var])) + ggplot2::geom_histogram(fill = "#0073C2FF", color = "#FFFFFF") + labs(title = paste ("Distribution of", input$data_table_vis_var), x = input$data_table_vis_var) + custom_theme() +scale_x_continuous(labels = scales::comma)
+      }
+      else if(chosen_node_graph() == 'density plot') {
+        ggplot2::ggplot(data = nodelist3(), aes(x = nodelist3()[,input$data_table_vis_var])) + ggplot2::geom_density(alpha = 0.7, fill = "#0073C2FF") + labs(title = paste ("Distribution of", input$data_table_vis_var), x = input$data_table_vis_var) + custom_theme() + scale_x_continuous(labels = scales::comma)
+      }
+      else if(chosen_node_graph() == 'scatterplot') {
+        ggplot2::ggplot(data = nodelist3(), aes(x = nodelist3()[,input$data_table_vis_var], y = nodelist3()[,input$data_table_vis_var2])) + ggplot2::geom_point(color="#0073C2FF") + labs(title = paste(input$data_table_vis_var, "vs", input$data_table_vis_var2)) + custom_theme() + scale_x_continuous(labels = scales::comma)
+      }
+    })
+  
 ### Setup Analysis Tab ----
   output$analysis_chooser <- renderUI({
     selectInput(inputId = "analysis_chooser", label = "Choose Measures Output", choices = c("QAP", "Role Detection"), selected = "QAP", multiple = FALSE)
