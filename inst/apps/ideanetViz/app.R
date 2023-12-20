@@ -1,4 +1,11 @@
-#Feb 12, 2022
+#Dec 20, 2023
+
+# Thoughts:
+### ggplots for descriptives/binaries need to look nicer
+### drop the univariate plot type selector if a second variable is selected
+### Need explicit call for `aes` function
+
+### Currently breaking if there isn't a nodelist, probably because of the legend. Need to fix.
 
 ## Setup libraries and seed ----
 
@@ -174,42 +181,39 @@ ui <- shiny::fluidPage(
 
 ### Networks DataTable ----
 tabPanel(
-  tabPanel(
-    "Node Measures Table",
-    sidebarLayout(
-      sidebarPanel(
-        style = "height: 90vh; overflow-y: auto;",
-        uiOutput('show_vars'),
-        br(),
-        checkboxInput('graph_wanted', tags$b("Do you want to graph a variable?"),FALSE),
-        conditionalPanel(
-          condition = "input.graph_wanted == true",
-          uiOutput('data_table_vis_var')
-        ),
-        conditionalPanel(
-          condition = "input.graph_wanted == true & input.var_wanted == false",
-          uiOutput('data_table_vis_type')
-        ),
-        conditionalPanel(
-          condition = "input.graph_wanted == true",
-          checkboxInput('var_wanted', tags$b("Add second variable? (optional)"),FALSE)
-        ),
-        conditionalPanel(
-          condition = "input.var_wanted == true & input.graph_wanted == true",
-          uiOutput('data_table_vis_var2')
-        ),
-        downloadButton("downloadTable", "Download",icon = shiny::icon("download")),
+  "Node Measures Table",
+  sidebarLayout(
+    sidebarPanel(
+      style = "height: 90vh; overflow-y: auto;",
+      uiOutput('show_vars'),
+      br(),
+      checkboxInput('graph_wanted', tags$b("Do you want to graph a variable?"), FALSE),
+      conditionalPanel(
+        condition = "input.graph_wanted == true",
+        uiOutput('data_table_vis_var')
       ),
+      conditionalPanel(
+        condition = "input.graph_wanted == true & input.var_wanted == false",
+        uiOutput('data_table_vis_type')
+      ),
+      conditionalPanel(
+        condition = "input.graph_wanted == true",
+        checkboxInput('var_wanted', tags$b("Add second variable? (optional)"),FALSE)
+      ),
+      conditionalPanel(
+        condition = "input.var_wanted == true & input.graph_wanted == true",
+        uiOutput('data_table_vis_var2')
+      ),
+      downloadButton("downloadTable", "Download",icon = shiny::icon("download")),
+    ),
       mainPanel(
         style = "overflow-x: auto;",
         DT::DTOutput('statistics_table'),
         HTML("<br><br>"),
-        
         plotOutput('statistics_graph')
-        
-      )
+        )
     )
-  ),
+),
 ### Analysis tab ----
     tabPanel(
       "Advanced Analytical Packages",
@@ -1086,7 +1090,7 @@ net5 <- reactive({
       
   })
 
-### Visualize nodemeasures ----
+  ### Visualize nodemeasures ----
   custom_theme <- function() {
     theme_minimal() +
       theme(
