@@ -279,6 +279,9 @@ library(magrittr)
   
 ### Upload Node  and Edge Data ----
   
+  # Create a placeholder for Node Data; if it isn't uploaded, stored
+  # as `NULL` to ensure compatibility downstream
+  
   #Upload Node Data
   
   
@@ -338,26 +341,38 @@ library(magrittr)
     # path_edges = input$raw_edges$datapath
     # path_nodes = input$raw_nodes$datapath
     # as.data.frame(network_nodelist)
-    req(input$raw_nodes)
-    # Reading CSV
-    if (input$select_file_type_edges == "csv") {
-      # network edgelist
-      read.csv(input$raw_nodes$datapath, header = input$edge_header)
-      # Reading Excel
+    print(exists("raw_nodes"))
+    test <- input$raw_nodes$datapath
+    print(test)
+    
+    # If `raw_nodes` path is defined...
+    if (is.character(test)) {
+        # Reading CSV
+        if (input$select_file_type_edges == "csv") {
+          # network edgelist
+          read.csv(input$raw_nodes$datapath, header = input$edge_header)
+          # Reading Excel
+        } else {
+          if(stringr::str_detect(input$raw_nodes$datapath, "xlsx$")) {
+            readxl::read_xlsx(path = input$raw_nodes$datapath, col_names = input$edge_header)
+          } else {
+            readxl::read_xls(path = input$raw_nodes$datapath, col_names = input$edge_header)
+          } 
+        }
+    # Otherwise store as `NULL`
     } else {
-      if(stringr::str_detect(input$raw_nodes$datapath, "xlsx$")) {
-        readxl::read_xlsx(path = input$raw_nodes$datapath, col_names = input$edge_header)
-      } else {
-        readxl::read_xls(path = input$raw_nodes$datapath, col_names = input$edge_header)
-      } 
+      NULL
     }
     })
   
   #Display Node Data
   output$node_raw_upload <- renderDataTable({
+    print(class(node_data()))
     validate(
-       need(input$raw_nodes, 'Upload Node Data!'),
+       need(!is.null(node_data()), 'Upload Node Data!')
      )
+    print("display test")
+    print(node_data())
     node_data()
   })
   
@@ -388,16 +403,24 @@ library(magrittr)
   
   #Node Processing Options
   output$node_ids <- renderUI({
-    selectInput(inputId = "node_id_col", label = "Column with node ids*", choices = append("Empty",colnames(node_data())), selected = "id", multiple = FALSE)
+    if (!is.null(node_data())){
+        selectInput(inputId = "node_id_col", label = "Column with node ids*", choices = append("Empty",colnames(node_data())), selected = "id", multiple = FALSE)
+    }
   })
   output$node_labels <- renderUI({
+    if (!is.null(node_data())){
     selectInput(inputId = "node_label_col", label = "Column with node labels", choices = append("Empty",colnames(node_data())), selected = "Empty", multiple = FALSE)
+    }
   })
   output$node_factor <- renderUI({
+    if (!is.null(node_data())){
     selectInput(inputId = "node_factor_col", label = "Column with groups", choices = append("Empty",colnames(node_data())), selected = NULL, multiple = TRUE)
+    }
   })
   output$node_numeric <- renderUI({
+    if (!is.null(node_data())){
     selectInput(inputId = "node_numeric_col", label = "Column with node sizes", choices = append("Empty",colnames(node_data())), multiple = FALSE)
+    }  
   })
   
   #Edge Processing Options
@@ -495,8 +518,11 @@ net0 <- reactive({
   
 ### MAKE SURE TO ADD CHECK FOR PROCESSING BACK IN!!!!
 
-# join node data with nodelist  
+  
+  
+# join node data with nodelist
 nodelist2 <- reactive({
+  
   if (!is.null(node_data())) {
     node_data3 <- node_data()
     node_data3[,input$node_id_col] <- as.character(node_data3[,input$node_id_col])
@@ -536,13 +562,25 @@ nodelist3 <- reactive({
 #Add labels in network 1
 net1 <- reactive({
   net <- net0()
+      # Testing to see if this will handle cases where nodelists aren't added
+      node_label_col <- input$node_label_col
+        if (is.null(node_label_col)) {
+          node_label_col <- "Empty"
+        }  
+      
   # Adding Vector Labels
-  if (input$node_label_col != 'Empty') {
+ # if (input$node_label_col != 'Empty') {
+  if (node_label_col != 'Empty') {
     print('reached')
     igraph::V(net)$label <- nodelist3()[,input$node_label_col]
     print('finished')
   } else {
+    print("Did it break here?")
+    test <- node_data()
+    print(head(test))
+    print(nodelist3()[,'id'])
     igraph::V(net)$label <- nodelist3()[,'id']
+    print("No")
   }
   
   #Add group elements (manually selected, automatically applied)
