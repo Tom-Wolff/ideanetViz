@@ -206,11 +206,15 @@ ui <- shiny::fluidPage(
     ### Analysis tab ----
     tabPanel(
       "Advanced Analytical Packages",
-      sidebarPanel(
-        uiOutput('analysis_chooser'),
-        conditionalPanel(
+      uiOutput('analysis_chooser'),
+      sidebarLayout(
+        sidebarPanel(
+          tabsetPanel(
+            id = "analytic_panels",
+            type = "hidden",
+      tabPanelBody(
+          "QAP",
           tags$p(HTML("<u>QAP Setup Options</u>")),
-          condition = "input.analysis_chooser == 'QAP'",
           tags$p(span("You must choose analysis type and variable as paired selections.", style = "color:red")),
           uiOutput('method_chooser'),
           uiOutput('var_cols'),
@@ -224,8 +228,8 @@ ui <- shiny::fluidPage(
           uiOutput('qap_run_choices'),
           uiOutput('run_QAP_model')
         ),
-        conditionalPanel(
-          condition = "input.analysis_chooser == 'Role Detection'",
+        tabPanelBody(
+          "Role Detection",
           uiOutput('select_role_type'),
           uiOutput('select_role_viz'),
           uiOutput('role_det_min'),
@@ -234,8 +238,7 @@ ui <- shiny::fluidPage(
           shinycssloaders::withSpinner(
             uiOutput('run_role_detect')
           )
-        )
-      ),
+        ))),
       mainPanel(
         conditionalPanel(
           condition = "input.analysis_chooser == 'Role Detection'",
@@ -245,7 +248,7 @@ ui <- shiny::fluidPage(
           )
         )
       )
-    )
+    ))
   )
 )
 
@@ -1244,6 +1247,10 @@ server <- function(input, output, session) {
   ### Setup Analysis Tab ----
   output$analysis_chooser <- renderUI({
     selectInput(inputId = "analysis_chooser", label = "Choose Measures Output", choices = c("QAP", "Role Detection"), selected = "QAP", multiple = FALSE)
+  })
+  
+  observeEvent(input$analysis_chooser, {
+    updateTabsetPanel(inputId = "analytic_panels", selected = input$analysis_chooser)
   })
   
   #### QAP ----
